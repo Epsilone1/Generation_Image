@@ -1,0 +1,88 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "imagegen"
+version = "0.1.0"
+description = "Generation d'images a partir d'un prompt (et optionnellement d'une image source), en local, avec des modeles libres."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+
+# Note: `torch` est volontairement absent des dependances.
+# Il doit etre installe depuis l'index PyTorch correspondant au materiel
+# (cu128/cu130 pour NVIDIA, cpu, xpu pour Intel Arc...), sinon pip installe
+# une roue CPU-only qui casse silencieusement l'acceleration.
+# Voir `imagegen doctor` pour la commande exacte a executer.
+dependencies = [
+    "diffusers>=0.35",
+    "transformers>=4.45",
+    "accelerate>=1.0",
+    "safetensors>=0.4",
+    "huggingface_hub>=0.30",
+    "pillow>=10.0",
+    "numpy>=1.26",
+    "typer>=0.12",
+    "rich>=13.0",
+]
+
+[project.optional-dependencies]
+# --- Acceleration NVIDIA / CUDA (a installer via l'index PyTorch) ---
+cuda = ["torch>=2.7", "torchvision>=0.22"]
+
+# --- NPU Intel (Core Ultra "AI Boost") + GPU/CPU Intel via OpenVINO ---
+openvino = [
+    "openvino>=2025.0",
+    "openvino-genai>=2025.0",
+    "optimum-intel[openvino]>=1.21",
+    "nncf>=2.14",
+]
+
+# --- ONNX Runtime: socle commun des NPU non-Intel et des GPU DirectX ---
+onnx = ["optimum[onnxruntime]>=1.23", "onnx>=1.17"]
+onnx-directml = ["onnxruntime-directml>=1.20"]   # tout GPU DX12 (AMD / Intel / NVIDIA)
+onnx-qnn = ["onnxruntime-qnn>=1.20"]             # NPU Hexagon (Snapdragon X)
+# NPU AMD XDNA (Ryzen AI): onnxruntime-vitisai n'est pas sur PyPI,
+# il s'installe depuis le Ryzen AI Software SDK d'AMD.
+
+# --- Quantification (faire tenir les gros modeles sur 8 Go) ---
+quant = ["bitsandbytes>=0.45", "optimum-quanto>=0.2.6", "gguf>=0.13"]
+
+# --- Backend distant optionnel (APIs gratuites) ---
+remote = ["httpx>=0.27"]
+
+dev = ["pytest>=8.0", "pytest-cov>=5.0", "ruff>=0.7"]
+
+[project.scripts]
+imagegen = "imagegen.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/imagegen"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+# The default run stays offline and instant. The end-to-end tests download
+# weights and run real inference: `pytest -m slow` opts in (a command-line -m
+# overrides this one).
+addopts = "-q -m 'not slow'"
+markers = [
+    "slow: tests qui telechargent un modele ou font une inference reelle",
+    "cuda: tests necessitant un GPU NVIDIA",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+ignore = ["E501"]
+
+[tool.ruff.lint.per-file-ignores]
+# typer's whole API is function calls in argument defaults; B008 is unavoidable
+# there and flagging it would mean either noise or a worse CLI.
+"src/imagegen/cli.py" = ["B008"]
+# The language marker lists read as prose word lists; a literal list of 60
+# quoted strings would be strictly harder to review and to extend.
+"src/imagegen/generation/prompts.py" = ["SIM905"]

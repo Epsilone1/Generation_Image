@@ -1,0 +1,32 @@
+# Environnements
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.pytest_cache/
+.ruff_cache/
+
+# Poids de modeles et caches (jamais versionnes)
+models/
+.cache/
+*.safetensors
+*.ckpt
+*.onnx
+*.bin
+*.gguf
+
+# Sorties generees
+outputs/
+out/
+*.png.json
+
+# Divers
+.DS_Store
+Thumbs.db
+.env
+
+# Reglages locaux de Claude Code (propres a cette machine)
+.claude/settings.local.json
